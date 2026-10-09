@@ -605,6 +605,37 @@ void RSAsioAudioClient::OnAsioBufferSwitch(unsigned buffIdx)
 
 					if (asioSampleTypeSize)
 					{
+						if (asioChannelInfo->type == ASIOSTFloat32LSB)
+						{
+							const float* samples = reinterpret_cast<const float*>(bufferInfo->buffers[buffIdx]);
+							float peak = 0.0f;
+							double sumSq = 0.0;
+
+							for (DWORD i = 0; i < m_bufferNumFrames; ++i)
+							{
+								const float v = samples[i];
+								const float a = std::fabs(v);
+								if (a > peak)
+									peak = a;
+								sumSq += double(v) * double(v);
+							}
+
+							const double rms = m_bufferNumFrames
+								? std::sqrt(sumSq / m_bufferNumFrames)
+								: 0.0;
+
+							static unsigned dbgRawInputCounter = 0;
+							if ((dbgRawInputCounter++ % 100) == 0)
+							{
+								rslog::info_ts()
+									<< "RAW_ASIO_INPUT ch=" << asioCh
+									<< " buff=" << buffIdx
+									<< " peak=" << peak
+									<< " rms=" << rms
+									<< std::endl;
+							}
+						}
+
 						AudioProcessing::CopyConvertFormat(
 							(BYTE*)bufferInfo->buffers[buffIdx], asioChannelInfo->type, asioSampleTypeSize,
 							m_bufferNumFrames,
